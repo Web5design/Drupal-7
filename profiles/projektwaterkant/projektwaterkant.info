@@ -36,6 +36,7 @@ dependencies[] = email
 dependencies[] = entity
 dependencies[] = entity_token
 dependencies[] = features
+dependencies[] = strongarm
 dependencies[] = field_group
 dependencies[] = imageapi
 dependencies[] = imageapi_gd
