@@ -178,7 +178,7 @@ function rules_action_entity_createfetch_access(RulesAbstractPlugin $element) {
  */
 function rules_action_entity_fetch_validate($element) {
   if (!isset($element->settings['type'])) {
-    throw new RulesException('Invalid type specified.', array(), array($element, 'parameter', 'type'));
+    throw new RulesEvaluationException('Invalid type specified.', array(), array($element, 'parameter', 'type'));
   }
 }
 
@@ -187,10 +187,10 @@ function rules_action_entity_fetch_validate($element) {
  */
 function rules_action_entity_query_validate($element) {
   if (!isset($element->settings['type'])) {
-    throw new RulesException('Invalid type specified.', array(), array($element, 'parameter', 'type'));
+    throw new RulesEvaluationException('Invalid type specified.', array(), array($element, 'parameter', 'type'));
   }
   if (!isset($element->settings['property'])) {
-    throw new RulesException('Invalid property specified.', array(), array($element, 'parameter', 'property'));
+    throw new RulesEvaluationException('Invalid property specified.', array(), array($element, 'parameter', 'property'));
   }
 }
 
@@ -273,13 +273,17 @@ function rules_entity_action_type_options($element, $name = NULL) {
 
 /**
  * Returns options containing entity types having the given key set in the info.
+ *
+ * Additionally, we exclude all entity types that are marked as configuration.
  */
 function rules_entity_type_options($key = NULL) {
   $info = entity_get_info();
   $types = array();
   foreach ($info as $type => $entity_info) {
-    if (!isset($key) || entity_type_supports($type, $key)) {
-      $types[$type] = $entity_info['label'];
+    if (empty($entity_info['configuration']) && empty($entity_info['exportable'])) {
+      if (!isset($key) || entity_type_supports($type, $key)) {
+        $types[$type] = $entity_info['label'];
+      }
     }
   }
   return $types;

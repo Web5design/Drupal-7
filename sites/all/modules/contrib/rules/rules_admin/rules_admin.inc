@@ -39,7 +39,7 @@ function rules_admin_reaction_overview($form, &$form_state, $base_path) {
   $form['filter']['event'] = array(
     '#type' => 'select',
     '#title' => t('Filter by event'),
-    '#options' => array(0 => t('<All>')) + RulesPluginUI::getOptions('event_info'),
+    '#options' => array(0 => t('<All>')) + RulesPluginUI::getOptions('event'),
     '#default_value' => $event,
   );
   $form['filter']['tag'] = array(
@@ -133,11 +133,65 @@ function rules_admin_components_overview($form, &$form_state, $base_path) {
  * Rules settings form.
  */
 function rules_admin_settings($form, &$form_state) {
-  $form['rules_debug'] = array(
+  $form['rules_log_errors'] = array(
+    '#type' => 'radios',
+    '#title' => t('Logging of Rules evaluation errors'),
+    '#options' => array(
+      RulesLog::WARN => t('Log all warnings and errors'),
+      RulesLog::ERROR => t('Log errors only'),
+    ),
+    '#default_value' => variable_get('rules_log_errors', RulesLog::WARN),
+    '#description' => t('Evaluations errors are logged to the system log.'),
+  );
+
+  $form['debug'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Debugging'),
+  );
+  $form['debug']['rules_debug_log'] = array(
     '#type' => 'checkbox',
-    '#title' => t('Debug rules evaluation'),
-    '#default_value' => variable_get('rules_debug', FALSE),
-    '#description' => t('If activated debugging information is shown when rules are evaluated.'),
+    '#title' => t('Log debug information to the system log'),
+    '#default_value' => variable_get('rules_debug_log', 0),
+  );
+  $form['debug']['rules_debug'] = array(
+    '#type' => 'radios',
+    '#title' => t('Show debug information'),
+    '#default_value' => variable_get('rules_debug', 0),
+    '#options' => array(
+      0 => t('Never'),
+      RulesLog::WARN => t('In case of errors'),
+      RulesLog::INFO => t('Always'),
+    ),
+    '#description' => t('Debug information is only shown when rules are evaluated and is visible for users having the permission <a href="!url">%link</a>.', array('%link' => t('Access the Rules debug log'), '!url' => url('admin/people/permissions', array('fragment' => 'module-rules')))),
+  );
+
+  $form['debug']['regions'] = array(
+    '#type' => 'container',
+    '#states' => array(
+      // Hide the regions settings when the debug log is disabled.
+      'invisible' => array(
+        'input[name="rules_debug"]' => array('value' => '0'),
+      ),
+    ),
+  );
+
+  $theme_default = variable_get('theme_default', 'bartik');
+  $admin_theme = variable_get('admin_theme', 'seven');
+
+  $form['debug']['regions']['rules_debug_region_' . $theme_default] = array(
+    '#type' => 'select',
+    '#title' => t('Default theme region'),
+    '#description' => t("The region, where the debug log should be displayed on the default theme %theme. For other themes, Rules will try to display the log on the same region, or hide it in case it doesn't exist.", array('%theme' => $theme_default)),
+    '#options' => system_region_list($theme_default, REGIONS_VISIBLE),
+    '#default_value' => variable_get('rules_debug_region_' . $theme_default, 'help'),
+  );
+
+  $form['debug']['regions']['rules_debug_region_' . $admin_theme] = array(
+    '#type' => 'select',
+    '#title' => t('Admin theme region'),
+    '#description' => t('The region, where the debug log should be displayed on the admin theme %theme.', array('%theme' => $admin_theme)),
+    '#options' => system_region_list($admin_theme, REGIONS_VISIBLE),
+    '#default_value' => variable_get('rules_debug_region_' . $admin_theme, 'help'),
   );
   if (db_table_exists('rules_rules')) {
     drupal_set_message(t('There are left over rule configurations from a previous Rules 1.x installation. Proceed to the <a href="!url">upgrade page</a> to convert them and consult the README.txt for more details.', array('!url' => url('admin/config/workflow/rules/upgrade'))), 'warning');
@@ -167,6 +221,7 @@ function rules_admin_add_reaction_rule($form, &$form_state, $base_path) {
   }
   // Incorporate the form to add the first event.
   $form['settings'] += rules_ui_add_event(array(), $form_state, $rules_config, $base_path);
+  $form['settings']['event']['#tree'] = FALSE;
   unset($form['settings']['help']);
 
   unset($form['settings']['submit']);
@@ -250,5 +305,6 @@ function rules_admin_add_component_validate($form, &$form_state) {
 function rules_admin_add_component_submit($form, &$form_state) {
   $rules_config = $form_state['rules_config'];
   $rules_config->form_submit($form, $form_state);
+  drupal_set_message(t('Your changes have been saved.'));
   $form_state['redirect'] = RulesPluginUI::path($rules_config->name);
 }

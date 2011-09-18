@@ -66,6 +66,7 @@ function rules_ui_form_rules_config_validate($form, &$form_state) {
  */
 function rules_ui_form_edit_rules_config_submit($form, &$form_state) {
   $form_state['rules_element']->form_submit($form, $form_state);
+  drupal_set_message(t('Your changes have been saved.'));
   if (empty($form_state['redirect'])) {
     $form_state['redirect'] = RulesPluginUI::defaultRedirect($form_state['rules_element']);
   }
@@ -254,7 +255,7 @@ function rules_ui_add_element($form, &$form_state, $rules_config, $plugin_name, 
     $form['element_name'] = array(
       '#type' => 'select',
       '#title' => t('Select the %element to add', array('%element' => $plugin_name)),
-      '#options' => RulesPluginUI::getOptions($plugin_name . '_info'),
+      '#options' => RulesPluginUI::getOptions($plugin_name),
       '#ajax' => rules_ui_form_default_ajax() + array(
         'trigger_as' => array('name' => 'continue'),
       ),
@@ -329,7 +330,7 @@ function rules_ui_delete_element_validate($form, &$form_state) {
   try {
     $form_state['rules_config']->integrityCheck();
   }
-  catch (RulesException $e) {
+  catch (RulesIntegrityException $e) {
     $args = array(
       '@plugin' => $e->element->plugin(),
       '%label' => $e->element->label(),
@@ -374,6 +375,7 @@ function rules_ui_edit_element_validate($form, &$form_state) {
  */
 function rules_ui_edit_element_submit($form, &$form_state) {
   $form_state['rules_element']->form_submit($form, $form_state);
+  drupal_set_message(t('Your changes have been saved.'));
   if (empty($form_state['redirect'])) {
     $form_state['redirect'] = RulesPluginUI::defaultRedirect($form_state['rules_element']);
   }
@@ -393,8 +395,8 @@ function rules_ui_add_event($form, &$form_state, RulesReactionRule $rules_config
   $form['event'] = array(
     '#type' => 'select',
     '#title' => t('React on event'),
-    '#options' => RulesPluginUI::getOptions($events),
-    '#description' => t('Whenever the event occurrs, rule evaluation is triggered.'),
+    '#options' => RulesPluginUI::getOptions('event', $events),
+    '#description' => t('Whenever the event occurs, rule evaluation is triggered.'),
   );
   $form['submit'] = array(
     '#type' => 'submit',
@@ -414,7 +416,7 @@ function rules_ui_add_event_validate($form, &$form_state) {
     try {
       $rules_config->integrityCheck();
     }
-    catch (RulesException $e) {
+    catch (RulesIntegrityException $e) {
       $args = array(
         '@plugin' => $e->element->plugin(),
         '%label' => $e->element->label(),
@@ -457,7 +459,7 @@ function rules_ui_remove_event_validate($form, &$form_state) {
   try {
     $rules_config->integrityCheck();
   }
-  catch (RulesException $e) {
+  catch (RulesIntegrityException $e) {
     $args = array(
       '@plugin' => $e->element->plugin(),
       '%label' => $e->element->label(),
@@ -521,7 +523,7 @@ function rules_ui_import_form_validate($form, &$form_state) {
     try {
       $rules_config->integrityCheck();
     }
-    catch (RulesException $e) {
+    catch (RulesIntegrityException $e) {
       form_set_error('import', t('Integrity check for the imported configuratoin failed. Error message: %message.', array('%message' => $e->getMessage())));
     }
     if (!user_access('bypass rules access') && !$rules_config->access()) {
@@ -561,10 +563,6 @@ function rules_ui_import_form_submit($form, &$form_state) {
  */
 function rules_data_selection_process($element, &$form_state, $form) {
   $element['#autocomplete_path'] .= '/' . $form['#build_id'];
-  // Workaround for problems with jquery css in seven theme.
-  if ($GLOBALS['theme'] == 'seven') {
-    drupal_add_css(drupal_get_path('module', 'rules') . '/ui/rules.ui.seven.css');
-  }
   $form_state['cache'] = TRUE;
   return $element;
 }

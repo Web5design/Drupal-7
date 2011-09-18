@@ -209,7 +209,7 @@ function rules_action_data_set_validate(RulesAbstractPlugin $element) {
   $element->settings += array('data:select' => NULL);
   $info = $element->applyDataSelector($element->settings['data:select'])->info();
   if (strpos($element->settings['data:select'], ':') !== FALSE && empty($info['setter callback'])) {
-    throw new RulesException("The selected data property doesn't support writing.", array(), array($element, 'parameter', 'data'));
+    throw new RulesIntegrityException(t("The selected data property doesn't support writing."), array($element, 'parameter', 'data'));
   }
 }
 
@@ -265,7 +265,7 @@ function rules_action_data_calc_form_alter(&$form, &$form_state, $options, Rules
  */
 function rules_action_create_type_validate($element) {
   if (!isset($element->settings['type'])) {
-    throw new RulesException('Invalid type specified.', array(), array($element, 'parameter', 'type'));
+    throw new RulesIntegrityException(t('Invalid type specified.'), array($element, 'parameter', 'type'));
   }
 }
 
@@ -366,7 +366,7 @@ function rules_action_data_list_add_positions() {
  * Options list callback for variable add action.
  */
 function rules_data_action_variable_add_options() {
-  return RulesPluginUI::getOptions('data_info');
+  return RulesPluginUI::getOptions('data');
 }
 
 /**
@@ -420,6 +420,7 @@ function rules_data_condition_info() {
           'type' => '*',
           'label' => t('Data to compare'),
           'description' => t('The data to be compared, specified by using a data selector, e.g. "node:author:name".'),
+          'allow null' => TRUE,
         ),
         'op' => array(
           'type' => 'text',
@@ -434,6 +435,7 @@ function rules_data_condition_info() {
           'type' => '*',
           'label' => t('Data value'),
           'description' => t('The value to compare the data with.'),
+          'allow null' => TRUE,
         ),
       ),
       'group' => t('Data'),
