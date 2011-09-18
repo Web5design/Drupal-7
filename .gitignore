@@ -1,5 +1,8 @@
 # Ignore configuration files that may contain sensitive information.
 sites/*/settings*.php
+sites/d7install.l
+.idea
+
 
 # Ignore paths that contain user-generated content.
 sites/*/files
