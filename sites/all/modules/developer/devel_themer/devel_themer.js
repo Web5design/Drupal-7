@@ -211,28 +211,32 @@
     var parents = '';
     parents = strs.parents +' <span class="parents">';
     for(i=1;i<objs.length;i++) {
-      var id = $(objs[i]).attr('thmr')
-      var pvars = Drupal.settings[id];
+      var thmrid = $(objs[i]).attr('thmr')
+      var pvars = Drupal.settings[thmrid];
       parents += i!=1 ? '&lt; ' : '';
       // populate the parents
       // each parent is wrapped with a span containing a 'trig' attribute with the id of the element it represents
-      parents += '<span class="parent" trig="'+ id +'">'+ pvars.name +'</span> ';
+      parents += '<span class="parent" trig="'+ thmrid +'">'+ pvars.name +'</span> ';
     }
     parents += '</span>';
     // stick the parents spans in the #parents div
     $('#themer-popup #parents').empty().prepend(parents);
-    $('#themer-popup span.parent').click(function() {
-    	  thmr_id = $(this).attr('thmr');
-    	  thmr_obj = $("['thmr' = "+thmr_id+"]")[0];
-    	  themerDoIt(thmr_obj); })
-    .hover(function() {
-        // make them highlight their element on mouseover
-        $('#'+ $(this).attr('trig')).trigger('mouseover');
-      },
-      function() {
-        // and unhilight on mouseout
-        $('#'+ $(this).attr('trig')).trigger('mouseout');
-      });
+    $('#themer-popup span.parent')
+      .click(function() {
+        var thmr_id = $(this).attr('trig');
+        var thmr_obj = $('[thmr = "' + thmr_id + '"]')[0];
+        themerDoIt(thmr_obj);
+      })
+      .hover(
+        function() {
+          // make them highlight their element on mouseover
+          $('#'+ $(this).attr('trig')).trigger('mouseover');
+        },
+        function() {
+          // and unhilight on mouseout
+          $('#'+ $(this).attr('trig')).trigger('mouseout');
+        }
+      );
 
     if (vars == undefined) {
       // if there's no item in the settings array for this element
@@ -259,9 +263,7 @@
         $('#themer-popup dt.candidates-type').empty().prepend(strs.candidate_files);
       }
 
-      
       // Use drupal ajax to do what we need 
-      uri = Drupal.settings.devel_themer_uri + '/' + id;
       vars_div_array = $('div.themer-variables');
       vars_div = vars_div_array[0];
       

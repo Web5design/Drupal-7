@@ -14,20 +14,6 @@ function devel_themer_menu() {
     'access arguments' => array('administer site configuration'),
     'type' => MENU_NORMAL_ITEM,
   );
-  $items['devel_themer/enable'] = array(
-    'title' => 'Devel Themer Enable',
-    'page callback' => 'devel_themer_toggle',
-    'page arguments' => array(1),
-    'access arguments' => array('access devel information'),
-    'type' => MENU_CALLBACK,
-  );
-  $items['devel_themer/disable'] = array(
-    'title' => 'Theme Development Enable',
-    'page callback' => 'devel_themer_toggle',
-    'page arguments' => array(0),
-    'access arguments' => array('access devel information'),
-    'type' => MENU_CALLBACK,
-  );
   $items['devel_themer/variables'] = array(
     'title' => 'Theme Development AJAX variables',
     'page callback' => 'devel_themer_ajax_variables',
@@ -70,18 +56,6 @@ function devel_themer_ajax_variables($request_id, $call) {
   return array('#type' => 'ajax', '#commands' => $commands);
 }
 
-/**
- * A menu callback. Usually called from the devel block.
- *
- * @return void
- */
-function devel_themer_toggle($action) {
-  $function = $action == 'enable' ? 'module_enable' : 'module_disable';
-  $$function('devel_themer');
-  drupal_set_message(t('Devel Themer module %action.', array('%action' => $action)));
-  drupal_goto();
-}
-
 function devel_themer_admin_settings() {
   $form['devel_themer_log'] = array('#type' => 'checkbox',
     '#title' => t('Display theme log'),
@@ -94,25 +68,27 @@ function devel_themer_admin_settings() {
 
 function devel_themer_init() {
   if (user_access('access devel information')) {
-    $base_path = base_path();
-    $path = drupal_get_path('module', 'devel_themer');
-    $path_to_devel = drupal_get_path('module', 'devel');
-    // we inject our HTML after page has loaded we have to add this manually.
-    if (has_krumo()) {
-      drupal_add_js($path_to_devel . '/krumo/krumo.js');
-      drupal_add_css($path_to_devel . '/krumo/skins/default/skin.css');
-    }
-    drupal_add_css($path . '/devel_themer.css');
-    drupal_add_js($path . '/devel_themer.js');
-    drupal_add_js($base_path . 'misc/jquery.form.js');
-    drupal_add_js($base_path . 'misc/ajax.js');
+    // Add requisite libraries.
+    drupal_add_library('system', 'jquery.form');
+    drupal_add_library('system', 'drupal.ajax');
     drupal_add_library('system', 'ui.draggable');
     drupal_add_library('system', 'ui.resizable');
 
-    // This needs to happen after all the other CSS.
-    drupal_add_css('<!--[if IE]>
-    <link href="' . $path . '/devel_themer_ie_fix.css" rel="stylesheet" type="text/css" media="screen" />
-<![endif]-->', array('type' => 'inline'));
+    // Add this module's JS and CSS.
+    $path = drupal_get_path('module', 'devel_themer');
+    drupal_add_js($path . '/devel_themer.js');
+    drupal_add_css($path . '/devel_themer.css');
+    drupal_add_css($path . '/devel_themer_ie_fix.css', array('browsers' => array('IE' => TRUE, '!IE' => FALSE), 'media' => 'screen', 'weight' => 20, 'preprocess' => FALSE));
+
+    // Add krumo JS and CSS. We can't rely on krumo automatically doing this,
+    // because we add our HTML dynamically after initial page load.
+    if (has_krumo()) {
+      $path_to_devel = drupal_get_path('module', 'devel');
+      // Krumo files don't work correctly when aggregated.
+      drupal_add_js($path_to_devel . '/krumo/krumo.js', array('preprocess' => FALSE));
+      drupal_add_css($path_to_devel . '/krumo/skins/default/skin.css', array('preprocess' => FALSE));
+    }
+
     devel_themer_popup();
 
     if (!devel_silent() && variable_get('devel_themer_log', FALSE)) {
@@ -170,11 +146,10 @@ function devel_themer_log() {
   }
 }
 
-
-
 /**
- * Intercepts all theme calls (including templates), adds to template log, and dispatches to original theme function.
- * This function gets injected into theme registry in devel_exit().
+ * Implements hook_theme_registry_alter().
+ *
+ * Route all theme hooks to devel_themer_catch_function().
  */
 function devel_themer_theme_registry_alter(&$theme_registry) {
   foreach ($theme_registry as $hook => $data) {
@@ -185,16 +160,33 @@ function devel_themer_theme_registry_alter(&$theme_registry) {
     }
     // Add our catch function to intercept functions as well as templates.
     $theme_registry[$hook]['function'] = 'devel_themer_catch_function';
-    
-    // Remove the process and preprocess functions so they are 
+
+    // Remove the process and preprocess functions so they are
     // only called by devel_themer_theme_twin().
-    $theme_registry[$hook]['devel_function_preprocess_intercept'] = $theme_registry[$hook]['preprocess functions'];
-    $theme_registry[$hook]['devel_function_process_intercept'] = $theme_registry[$hook]['process functions'];
+    $theme_registry[$hook]['devel_function_preprocess_intercept'] = isset($theme_registry[$hook]['preprocess functions']) ? $theme_registry[$hook]['preprocess functions'] : array();
+    $theme_registry[$hook]['devel_function_process_intercept'] = isset($theme_registry[$hook]['process functions']) ? $theme_registry[$hook]['process functions'] : array();
     $theme_registry[$hook]['preprocess functions'] = array();
     $theme_registry[$hook]['process functions'] = array();
   }
 }
 
+/**
+ * Implements hook_module_implements_alter().
+ *
+ * Ensure devel_themer_theme_registry_alter() runs as late as possible.
+ */
+function devel_themer_module_implements_alter(&$implementations, $hook) {
+  if ($hook == 'theme_registry_alter') {
+    // Unsetting and resetting moves the item to the end of the array.
+    $group = $implementations['devel_themer'];
+    unset($implementations['devel_themer']);
+    $implementations['devel_themer'] = $group;
+  }
+}
+
+/**
+ * Intercepts all theme calls (including templates), adds to template log, and dispatches to original theme function.
+ */
 function devel_themer_catch_function() {
   $trace = debug_backtrace(FALSE);
   $hook = $trace[1]['args'][0];
@@ -217,10 +209,20 @@ function devel_themer_catch_function() {
   if (!empty($return) && !is_array($return) && !is_object($return) && user_access('access devel information')) {
     $key = "thmr_$counter";
 
-    // Check for themer attribute in content returned
-    if (!strpos($return, $key)) {
-       // TODO exclude some hooks here.
-      $return = '<span thmr="' . $key . '">' . $return . '</span>';
+    // Check for themer attribute in content returned. Apply word boundaries so
+    // that 'thmr_10' doesn't match 'thmr_1'.
+    if (!preg_match("/\\b$key\\b/", $return)) {
+      // Exclude wrapping a SPAN around content returned by theme functions
+      // whose result is not intended for HTML usage.
+      $exclude = array('options_none');
+
+      // theme_html_tag() is a low-level theme function intended primarily for
+      // markup added to the document HEAD.
+      $exclude[] = 'html_tag';
+
+      if (!in_array($hook, $exclude)) {
+        $return = '<span thmr="' . $key . '">' . $return . '</span>';
+      }
     }
 
     if ($meta['type'] == 'func') {
@@ -287,6 +289,9 @@ function devel_themer_catch_function() {
   return isset($output) ? $output : $return;
 }
 
+/**
+ * Near clone of theme().
+ */
 function devel_themer_theme_twin($hook, $variables) {
   static $hooks = NULL;
   $thmr_key = $variables['thmr_key'];
@@ -342,13 +347,13 @@ function devel_themer_theme_twin($hook, $variables) {
 
   $meta['hook'] = $hook;
   $info = $hooks[$hook];
-  $meta['path'] = $info['theme path'];
+  $meta['path'] = isset($info['theme path']) ? $info['theme path'] : NULL;
 
 
   global $theme_path;
   $temp = $theme_path;
   // point path_to_theme() to the currently used theme path:
-  $theme_path = $info['theme path'];
+  $theme_path = isset($info['theme path']) ? $info['theme path'] : NULL;
 
   // Include a file if the theme function or variable processor is held elsewhere.
   if (!empty($info['includes'])) {
@@ -452,7 +457,7 @@ function devel_themer_theme_twin($hook, $variables) {
       $info['function'] = $info['devel_function_intercept'];
     }
     $meta['hook'] = $hook;
-    $meta['path'] = $info['theme path'];
+    $meta['path'] = isset($info['theme path']) ? $info['theme path'] : NULL;
   }
 
   // Generate the output using either a function or a template.
@@ -520,11 +525,6 @@ function devel_themer_theme_twin($hook, $variables) {
   return array($output, $meta);
 }
 
-/*
- * Implements hook_page_alter().
- * Add pre and post render functions to elements in the page.
- */
-
 // We save the huge js array here instead of hook_footer so we can catch theme('page')
 function devel_themer_exit() {
   // TODO: limit to html pages only $router_item = menu_get_item();
@@ -568,7 +568,7 @@ function devel_themer_popup() {
   drupal_add_js(array('thmrStrings' =>
     array(
       'themer_info' => t('Themer info'),
-      'toggle_throbber' => ' <img src="' . base_path() . drupal_get_path('module', 'devel') . '/loader-little.gif' . '" alt="' . t('loading') . '" class="throbber" width="16" height="16" style="display:none" />',
+      'toggle_throbber' => ' <img src="' . base_path() . drupal_get_path('module', 'devel_themer') . '/loader-little.gif' . '" alt="' . t('loading') . '" class="throbber" width="16" height="16" style="display:none" />',
       'parents' => t('Parents:') . ' ',
       'function_called' => t('Function called:') . ' ',
       'template_called' => t('Template called:') . ' ',

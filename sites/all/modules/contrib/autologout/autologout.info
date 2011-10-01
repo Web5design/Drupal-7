@@ -2,9 +2,9 @@ name = Automated Logout
 description = Adds automated timed logout
 core = 7.x
 files[] = autologout.module
-; Information added by drupal.org packaging script on 2011-02-25
+; Information added by drupal.org packaging script on 2011-08-23
 version = "7.x-2.x-dev"
 core = "7.x"
 project = "autologout"
-datestamp = "1298618864"
+datestamp = "1314057820"
 

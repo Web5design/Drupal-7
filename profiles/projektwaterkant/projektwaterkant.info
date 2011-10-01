@@ -25,7 +25,7 @@ dependencies[] = admin_menu
 dependencies[] = admin_menu_toolbar
 dependencies[] = filter_perms
 dependencies[] = module_filter
-
+dependencies[] = transliteration
 dependencies[] = backup_migrate
 dependencies[] = better_formats
 dependencies[] = cck
