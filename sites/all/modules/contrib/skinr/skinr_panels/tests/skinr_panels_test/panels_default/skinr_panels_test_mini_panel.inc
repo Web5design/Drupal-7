@@ -3,10 +3,10 @@
 $mini = new stdClass;
 $mini->disabled = FALSE;
 $mini->api_version = 1;
-$mini->name = 'skinr_ui_test_mini_panel';
+$mini->name = 'skinr_panels_test_mini_panel';
 $mini->category = '';
-$mini->admin_title = 'Skinr UI Test mini panel';
-$mini->admin_description = 'Skinr UI Test mini panel.';
+$mini->admin_title = 'Skinr Panels Test mini panel';
+$mini->admin_description = 'Skinr Panels Test mini panel.';
 $mini->requiredcontexts = array();
 $mini->contexts = array();
 $mini->relationships = array();

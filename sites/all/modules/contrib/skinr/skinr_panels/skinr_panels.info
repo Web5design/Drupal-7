@@ -1,9 +1,10 @@
-name = Skinr test base theme
-description = Test theme which acts as a base theme for other test subthemes.
+name = Skinr Panels
+description = Provides Skinr integration with Panels.
+package = Skinr
 core = 7.x
-hidden = TRUE
+dependencies[] = panels
 
-skinr[api] = 2
+files[] = tests/skinr_panels.test
 
 ; Information added by drupal.org packaging script on 2011-10-22
 version = "7.x-2.x-dev"
