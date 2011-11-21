@@ -12,6 +12,7 @@ dependencies[] = context_layouts
 dependencies[] = dashboard
 dependencies[] = help
 dependencies[] = image
+dependencies[] = libraries
 dependencies[] = media
 dependencies[] = list
 dependencies[] = menu
