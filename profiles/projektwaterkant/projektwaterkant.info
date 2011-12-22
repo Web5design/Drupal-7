@@ -1,5 +1,5 @@
-name =Drupal 7 Baseinstallation Deutsch
-description = inkl. der meistgenutzten Module und Grundkonfiguration
+name =Drupal 7 with usefull modules
+description = including our most used modules and some configurations
 version = VERSION
 core = 7.x
 dependencies[] = block
