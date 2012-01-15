@@ -1,0 +1,10 @@
+name = Meta tags
+description = "Adds support and an API to implement meta tags."
+package = Meta tags
+core = 7.x
+dependencies[] = token
+dependencies[] = ctools
+configure = admin/config/search/metatags
+
+files[] = metatag.inc
+files[] = metatag.test
