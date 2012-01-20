@@ -6,8 +6,6 @@ form div.nodeconnect-add input{
   height : 16px;
   border:0px;
   -moz-box-shadow: none;
-  margin: 0;
-  padding: 0;
 }
 form div.nodeconnect-edit input {
   background: url(pencil.png) no-repeat;

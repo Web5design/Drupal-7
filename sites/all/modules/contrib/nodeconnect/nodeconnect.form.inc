@@ -1,16 +1,17 @@
 <?php
+// $Id: nodeconnect.form.inc,v 1.1.2.1 2011/01/21 18:21:32 e2thex Exp $
 /**
  * @file
  * handles all form alters and submit functions for nodeconnect
  */
 
 /*
- * Implements of hook_field_attach_form()
+ * Implements of hook_field_attache_form()
  *
  * here we attach a submit button for each node ref field
  */
-function _nodeconnect_field_attach_form($entity_type, $entity, &$form, &$form_state, $langcode=LANGUAGE_NONE, $field_name, $field) {
-  $language = $form[$field_name]['#language'];
+function _nodeconnect_field_attach_form($entity_type, $entity, &$form, &$form_state, $langcode='und', $field_name, $field) {
+  $language = $langcode;
   foreach ($form[$field_name][$language] as $key => $field) {
     if (is_numeric($key)) {
       // we have to add some extra js for single value fields so we add a class to let the
@@ -18,7 +19,6 @@ function _nodeconnect_field_attach_form($entity_type, $entity, &$form, &$form_st
       $extra = $form[$field_name][$language]['#cardinality'] == 1 ? 'single-value' : '';
       $form[$field_name][$language][$key]["add_nodeconnect__{$field_name}_$key"] = array(
         '#type' => 'submit',
-				'#limit_validation_errors' => array(),
         '#value' => "New Content",
         '#name' => "add_nodeconnect__{$field_name}_$key",
         '#prefix' => "<div class = 'nodeconnect-add $extra'>",
@@ -26,7 +26,7 @@ function _nodeconnect_field_attach_form($entity_type, $entity, &$form, &$form_st
         '#key' => $key,
         '#field' => $field_name,
         '#add_child' => TRUE,
-        '#language' => $language,
+        '#language' => 'und',
         '#submit' => array('nodeconnect_include_form', 'nodeconnect_add_edit_button_submit'),
         '#weight' => -2,
         '#attached' => array(
@@ -40,7 +40,6 @@ function _nodeconnect_field_attach_form($entity_type, $entity, &$form, &$form_st
       );
       $form[$field_name][$language][$key]["edit_nodeconnect__{$field_name}_$key"] = array(
         '#type' => 'submit',
-				'#limit_validation_errors' => array(),
         '#value' => "Edit Content",
         '#name' => "edit_nodeconnect__{$field_name}_$key",
         '#prefix' => "<div class = 'nodeconnect-edit $extra'>",
