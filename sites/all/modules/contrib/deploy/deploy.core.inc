@@ -1,148 +1,6 @@
 <?php
 
 /**
- * @file
- * Contains hook implementations for all relevant core module.
- *
- * @todo
- *   Replace all these hook implementations with a generic solution that uses
- *   info from hook_entity_field_info() and hook_entity_property_info(). That
- *   info should contain info about what and how dependencies are added.
- */
-
-/**
- * @defgroup deploy_property Propery dependency implementations
- * @{
- */
-
-/**
- * Implements hook_deploy_entity_dependenies().
- */
-function node_deploy_entity_dependencies($entity, $entity_type) {
-  if ($entity_type == 'node') {
-    $dependencies = array();
-    deploy_add_dependencies($dependencies, $entity, 'user', array('uid', 'revision_uid'));
-    deploy_add_dependencies($dependencies, $entity, 'node', 'tnid');
-    return $dependencies;
-  }
-}
-
-/**
- * Implements hook_deploy_entity_dependenies().
- */
-function comment_deploy_entity_dependencies($entity, $entity_type) {
-  if ($entity_type == 'comment') {
-    $dependencies = array();
-    deploy_add_dependencies($dependencies, $entity, 'user', 'uid');
-    deploy_add_dependencies($dependencies, $entity, 'node', 'nid');
-    return $dependencies;
-  }
-}
-
-/**
- * Implements hook_deploy_entity_dependencies()
- */
-function taxonomy_deploy_entity_dependencies($entity, $entity_type) {
-  if ($entity_type == 'taxonomy_term') {
-    $dependencies = array();
-    $terms = taxonomy_get_parents($entity->tid);
-    foreach ($terms as $tid => $term) {
-      $dependencies['taxonomy_term'][$tid] = TRUE;
-    }
-    return $dependencies;
-  }
-}
-
-/**
- * Implements hook_deploy_entity_dependencies().
- */
-function field_deploy_entity_dependencies($entity, $entity_type) {
-  $dependencies = array();
-  list(,, $bundle_name) = entity_extract_ids($entity_type, $entity);
-  $instances = field_info_instances($entity_type, $bundle_name);
-
-  foreach ($instances as $field_name => $instance) {
-    $field = field_info_field($field_name);
-    foreach ($entity->{$field_name} as $langcode => $items) {
-      $field_dependencies = module_invoke($field['module'], 'deploy_field_dependencies', $entity_type, $entity, $field, $instance, $langcode, $items);
-      // Let other modules alter dependencies for this field.
-      drupal_alter('deploy_field_dependency', $field_dependencies, $entity_type, $entity, $field, $instance, $langcode, $items);
-
-      if (!empty($field_dependencies)) {
-        foreach ($field_dependencies as $entity_type => $entity_ids) {
-          foreach ($entity_ids as $entity_id => $something) {
-            $dependencies[$entity_type][$entity_id] = TRUE;
-          }
-        }
-      }
-    }
-  }
-  return $dependencies;
-}
-
-/**
- * @} End of "Property dependency implementations"
- */
-
-/**
- * @defgroup deploy_field Field dependency implementations
- * @{
- */
-
-/**
- * Implements hook_deploy_field_dependencies().
- */
-function taxonomy_deploy_field_dependencies($entity_type, $entity, $field, $instance, $langcode, $items) {
-  $dependencies = array();
-  deploy_add_dependencies($dependencies, $items, 'taxonomy_term', 'tid');
-  return $dependencies;
-}
-
-/**
- * Implements hook_deploy_field_dependency().
- */
-function file_deploy_field_dependencies($entity_type, $entity, $field, $instance, $langcode, $items) {
-  $dependencies = array();
-  deploy_add_dependencies($dependencies, $items, 'file', 'fid');
-  deploy_add_dependencies($dependencies, $items, 'user', 'uid');
-  return $dependencies;
-}
-
-/**
- * Implements hook_deploy_field_dependencies().
- */
-function node_reference_deploy_field_dependencies($entity_type, $entity, $field, $instance, $langcode, $items) {
-  $dependencies = array();
-  deploy_add_dependencies($dependencies, $items, 'node', 'nid');
-  return $dependencies;
-}
-
-/**
- * Implements hook_deploy_field_dependencies().
- */
-function user_reference_deploy_field_dependencies($entity_type, $entity, $field, $instance, $langcode, $items) {
-  $dependencies = array();
-  deploy_add_dependencies($dependencies, $items, 'user', 'uid');
-  return $dependencies;
-}
-
-/**
- * Implements hook_deploy_field_dependencies().
- */
-function entityreference_deploy_field_dependencies($entity_type, $entity, $field, $instance, $langcode, $items) {
-  $dependencies = array();
-  foreach ($items as $item) {
-    $info = entity_get_info($item['target_type']);
-    deploy_add_dependencies($dependencies, $item, $item['target_type'], $info['entity keys']['id']);
-  }
-  return $dependencies;
-}
-
-/**
- * @} End of "Field dependency implementations"
- */
-
-/**
  * @defgroup deploy_alter Deployment alterations
  * @{
  */
@@ -188,10 +46,12 @@ function field_deploy_entity_alter(&$entity, $entity_type) {
     $field = field_info_field($field_name);
     foreach ($entity->{$field_name} as $langcode => &$items) {
       foreach ($items as &$item) {
-        // The 'safe_value' key is attached on runtime. We don't need to deploy
-        // that.
-        if (isset($item['safe_value'])) {
-          unset($item['safe_value']);
+        // This can potentially save *a lot* of bandwidth, since these values
+        // aren't really needed when deploying.
+        foreach (array('safe_value', 'safe_summary') as $key) {
+          if (isset($item[$key])) {
+            unset($item[$key]);
+          }
         }
       }
       // TODO: Can we do this with drupal_alter()? Reason for this quick and
@@ -274,7 +134,7 @@ function deploy_form_node_admin_content_alter(&$form, $form_state) {
   $options = &$form['admin']['options']['operation']['#options'];
   $group_add = t('Add to managed deployment plan');
   $options[$group_add] = array();
-  $group_delete = t('Remove from managed deployment plan');
+  $group_delete = t('Delete from managed deployment plan');
   $options[$group_delete] = array();
   foreach ($form['admin']['options']['operation']['#options'] as $key => $value) {
     list($module) = explode(':', $key);

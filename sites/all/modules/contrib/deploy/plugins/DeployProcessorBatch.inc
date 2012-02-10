@@ -5,39 +5,60 @@
  */
 class DeployProcessorBatch extends DeployProcessorMemory {
 
-  public function process($endpoint_name) {
-    if ($endpoint = deploy_endpoint_load($endpoint_name)) {
-      $operations = array();
+  /**
+   * Batch operations to execute.
+   *
+   * @var array
+   */
+  public $operations = array();
 
-      foreach ($this->aggregator as $data) {
-        // Since we are queuing for unknown time, we only want to queue
-        // originators. Their dependencies will be figured out anyhow when
-        // processing later on.
-        if ($data['relationship']['type'] == ENTITY_RELATIONSHIP_ORIGIN) {
-          $item = array(
-            'plan_name' => $this->aggregator->plan->name,
-            'entity_type' => $data['entity_type'],
-            'entity_id' => $data['entity_id'],
-            'endpoint_name' => $endpoint_name,
-          );
-          $operations[] = array('deploy_queue_process_item', array($item));
+  protected function processOperations(Array $operations = array()) {
+    if (!empty($operations)) {
+      foreach ($this->aggregator as $entity) {
+        foreach ($operations as $operation) {
+          $this->operations[] = array($operation['callback'], array($this->aggregator->plan->name, $entity));
         }
       }
-      $batch = array(
-        'title' => t('Deploying %plan to %endpoint', array('%plan' => $this->aggregator->plan->title, '%endpoint' => $endpoint->title)),
-        'operations' => $operations,
-      );
-      batch_set($batch);
     }
   }
 
-  public function cleanup() {
-    drupal_set_message(t('%plan has been deployed to its endpoints', array('%plan' => $this->aggregator->plan->title)));
-    batch_process('admin/structure/deploy');
+  public function deploy($deployment_key, DeployEndpoint $endpoint, $lock_name = NULL) {
+    deploy_log($deployment_key, DEPLOY_STATUS_PROCESSING);
+    foreach ($this->aggregator as $entity) {
+      $entity_info = entity_get_info($entity->__metadata['type']);
+      $id_key = $entity_info['entity keys']['id'];
+
+      $entity->__metadata['id'] = $entity->{$id_key};
+      $entity->__metadata['deployment_key'] = $deployment_key;
+      $entity->__metadata['plan_name'] = $this->aggregator->plan->name;
+      $entity->__metadata['endpoint_name'] = $endpoint->name;
+      $entity->__metadata['lock_name'] = $lock_name;
+      $this->operations[] = array('deploy_queue_worker_deploy', array($entity));
+    }
   }
 
-  public function configForm(&$form_state) {
-    // We have no settings for this processor.
-    return array();
+  public function publish($deployment_key, DeployEndpoint $endpoint, $lock_name = NULL) {
+    foreach ($this->aggregator as $entity) {
+      $entity_info = entity_get_info($entity->__metadata['type']);
+      $id_key = $entity_info['entity keys']['id'];
+
+      $entity->__metadata['id'] = $entity->{$id_key};
+      $entity->__metadata['deployment_key'] = $deployment_key;
+      $entity->__metadata['plan_name'] = $this->aggregator->plan->name;
+      $entity->__metadata['endpoint_name'] = $endpoint->name;
+      $entity->__metadata['lock_name'] = $lock_name;
+      $this->operations[] = array('deploy_queue_worker_publish', array($entity));
+    }
+  }
+
+  public function postProcess(Array $operations = array()) {
+    $this->processOperations($operations);
+    $batch = array(
+      'title' => t('Deploying %plan', array('%plan' => $this->aggregator->plan->title)),
+      'operations' => $this->operations,
+      'finished' => 'deploy_batch_finished_operation',
+    );
+    batch_set($batch);
+    batch_process('admin/structure/deploy');
   }
 }
