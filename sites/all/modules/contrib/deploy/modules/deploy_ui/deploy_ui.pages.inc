@@ -1,5 +1,5 @@
 <?php
-
+ 
 /**
  * Page callback for the overview page.
  */
@@ -13,10 +13,10 @@ function deploy_ui_overview_page() {
 
     // Get the entity keys from the aggregator.
     $entity_keys = $plan->getEntities();
-    foreach ($entity_keys as $entity_type => $entity_ids) {
+    foreach ($entity_keys as $entity_key) {
       // Get the entity info and all entities of this type.
-      $entity_info = entity_get_info($entity_type);
-      $entities = entity_load($entity_type, $entity_ids);
+      $entity_info = entity_get_info($entity_key['type']);
+      $entities = entity_load($entity_key['type'], array($entity_key['id']));
 
       // Construct a usable array for the theme function.
       foreach ($entities as $entity) {
@@ -96,7 +96,7 @@ function theme_deploy_ui_overview($variables) {
       $output .= '<div class="' . $position . ' clearfix">';
       $output .= '<div class="admin-panel deploy-panel">';
       $output .= '<h3>' . $block['plan_title'] . '</h3>';
-      if (!$block['fetch_only']) {
+      if (!$block['fetch_only'] && $status_info) {
         $output .= '<div class="messages ' . $status_info['class'] . '">';
         $output .= '<h4 class="element-invisible">Status message</h4>';
         $output .= $status_info['title'];

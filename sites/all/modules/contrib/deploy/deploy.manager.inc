@@ -10,12 +10,14 @@ function deploy_manager_get_entities($plan_name) {
   $entities = array();
   $result = db_query("SELECT * FROM {deploy_manager_entities} WHERE plan_name = :plan_name", array(':plan_name' => $plan_name));
   foreach ($result as $record) {
-    $entities[$record->entity_type][] = $record->entity_id;
+    $entities[] = array('type' => $record->entity_type, 'id' => $record->entity_id);
   }
   // If the plan fetched from the database is empty, try fetch default UUID
   // entities (keyed with this plan name).
   if (empty($entities)) {
-    features_include_defaults(array('uuid_entities'));
+    if (module_exists('features')) {
+      features_include_defaults(array('uuid_entities'));
+    }
     $plans = module_invoke_all('uuid_default_entities');
     if (isset($plans[$plan_name])) {
       foreach ($plans[$plan_name] as $entity) {
@@ -27,7 +29,7 @@ function deploy_manager_get_entities($plan_name) {
           $entity_ids = entity_get_id_by_uuid($entity_type, array($entity->{$entity_info['entity keys']['uuid']}));
           $entity_id = reset($entity_ids);
           if (!empty($entity_id)) {
-            $entities[$entity_type][] = $entity_id;
+            $entities[] = array('type' => $entity_type, 'id' => $entity_id);
           }
         }
       }
@@ -118,6 +120,7 @@ function deploy_manager_delete_from_plan($plan_name, $entity_type, $entity) {
   db_delete('deploy_manager_entities')
     ->condition('entity_type', $entity_type)
     ->condition('entity_id', $entity_id)
+    ->condition('plan_name', $plan_name)
     ->execute();
 }
 
@@ -128,5 +131,15 @@ function deploy_manager_postprocess_operation($plan_name, $entity) {
   $plan = deploy_plan_load($plan_name);
   if (!empty($plan->aggregator_config['delete_post_deploy'])) {
     deploy_manager_delete_from_plan($plan->name, $entity->__metadata['type'], $entity);
+  }
+}
+
+/**
+ * Implements hook_entity_delete().
+ */
+function deploy_entity_delete($entity, $entity_type) {
+  $plans = deploy_manager_plan_load_all();
+  foreach ($plans as $plan) {
+    deploy_manager_delete_from_plan($plan->name, $entity_type, $entity);
   }
 }
