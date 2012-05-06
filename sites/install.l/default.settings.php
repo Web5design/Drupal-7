@@ -178,21 +178,7 @@
  *   );
  * @endcode
  */
-$databases = array (
-  'default' => 
-  array (
-    'default' => 
-    array (
-      'database' => 'd7install',
-      'username' => 'webdev',
-      'password' => 'webdev',
-      'host' => 'localhost',
-      'port' => '',
-      'driver' => 'mysql',
-      'prefix' => '',
-    ),
-  ),
-);
+$databases = array();
 
 /**
  * Access control for update.php script.
@@ -224,7 +210,7 @@ $update_free_access = FALSE;
  *   $drupal_hash_salt = file_get_contents('/home/example/salt.txt');
  *
  */
-$drupal_hash_salt = 'L09C9BDgTZVyQyGQSCx9ulPfUYgiNpb_L56tEaPADnU';
+$drupal_hash_salt = '';
 
 /**
  * Base URL (optional).
