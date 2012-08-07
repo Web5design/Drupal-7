@@ -1,0 +1,11 @@
+name = WISIWYG Profiles
+description = base configuration for tinyMCE
+core = 7.x
+package = Features
+version = 7.x-1.0
+project = wisiwyg_profiles
+dependencies[] = features
+dependencies[] = filter
+features[features_api][] = api:1
+features[filter][] = filtered_html
+features[filter][] = full_html
