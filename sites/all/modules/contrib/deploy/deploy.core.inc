@@ -29,6 +29,17 @@ function taxonomy_entity_load(&$entities, $entity_type) {
 
 /**
  * Implements hook_deploy_entity_alter().
+ */
+function file_deploy_entity_alter(&$entity, $entity_type) {
+  if ($entity_type == 'file') {
+    if (!isset($entity->file_contents)) {
+      $entity->file_contents = base64_encode(file_get_contents($entity->uri));
+    }
+  }
+}
+
+/**
+ * Implements hook_deploy_entity_alter().
  *
  * This hook will go through all fields for an entity and invoke a new hook for
  * all field modules. This saves a lot of work for each field implementaor.
@@ -107,7 +118,7 @@ function deploy_node_operation_add_to_managed_plan($nids, $plan_name) {
   }
   $deploy_link = url("admin/structure/deploy/plans/list/$plan_name/deploy", array('query' => array('cancel_path' => 'admin/content')));
   $overview_link = url('admin/structure/deploy');
-  drupal_set_message(t('Nodes where added to <a href="!overview">@plan</a>. You might want to <a href="!deploy">deploy the plan</a>.', array('@plan' => $plan->title, '!overview' => $overview_link, '!deploy' => $deploy_link)));
+  drupal_set_message(t('Nodes were added to <a href="!overview">@plan</a>. You might want to <a href="!deploy">deploy the plan</a>.', array('@plan' => $plan->title, '!overview' => $overview_link, '!deploy' => $deploy_link)));
 }
 
 /**
@@ -121,7 +132,7 @@ function deploy_node_operation_delete_from_managed_plan($nids, $plan_name) {
   }
   $deploy_link = url("admin/structure/deploy/plans/list/$plan_name/deploy", array('query' => array('cancel_path' => 'admin/content')));
   $overview_link = url('admin/structure/deploy');
-  drupal_set_message(t('Nodes where deleted from <a href="!overview">@plan</a>. You might want to <a href="!deploy">deploy the plan</a>.', array('@plan' => $plan->title, '!overview' => $overview_link, '!deploy' => $deploy_link)));
+  drupal_set_message(t('Nodes were deleted from <a href="!overview">@plan</a>. You might want to <a href="!deploy">deploy the plan</a>.', array('@plan' => $plan->title, '!overview' => $overview_link, '!deploy' => $deploy_link)));
 }
 
 /**

@@ -78,7 +78,12 @@ function devel_themer_init() {
     $path = drupal_get_path('module', 'devel_themer');
     drupal_add_js($path . '/devel_themer.js');
     drupal_add_css($path . '/devel_themer.css');
-    drupal_add_css($path . '/devel_themer_ie_fix.css', array('browsers' => array('IE' => TRUE, '!IE' => FALSE), 'media' => 'screen', 'weight' => 20, 'preprocess' => FALSE));
+    drupal_add_css($path . '/devel_themer_ie_fix.css', array(
+      'browsers' => array('IE' => 'lt IE 7', '!IE' => FALSE),
+      'media' => 'screen',
+      'weight' => 20,
+      'preprocess' => FALSE,
+    ));
 
     // Add krumo JS and CSS. We can't rely on krumo automatically doing this,
     // because we add our HTML dynamically after initial page load.
@@ -103,8 +108,7 @@ function devel_themer_shutdown() {
 
 /**
  * Show all theme templates and functions that could have been used on this page.
- **/
-
+ */
 function devel_themer_log() {
   if (isset($GLOBALS['devel_theme_calls'])) {
     foreach ($GLOBALS['devel_theme_calls'] as $counter => $call) {
@@ -185,6 +189,36 @@ function devel_themer_module_implements_alter(&$implementations, $hook) {
 }
 
 /**
+ * Injects markers into the html returned by theme functions/templates.
+ *
+ * Uses simplehtmldom to add a thmr attribute to toplevel html elements.
+ * A toplevel text element will be wrapped in a span.
+ *
+ * @param string $html
+ * @param string $marker
+ */
+function devel_themer_inject_markers($html, $marker) {
+  $html_dom = new simple_html_dom();
+  $html_dom->load($html);
+  foreach ($html_dom->root->nodes as $element) {
+    if ($element->nodetype == HDOM_TYPE_TEXT) {
+      $element->innertext = "<span thmr='$marker' class='devel-themer-wrapper'>{$element->innertext}</span>";
+    }
+    elseif ($element->hasAttribute('thmr')) {
+      $element->setAttribute('thmr', "$marker " . $element->getAttribute('thmr'));
+    }
+    else {
+      $element->setAttribute('thmr', $marker);
+    }
+  }
+  $html = (string)$html_dom;
+  // Release memory.
+  $html_dom->clear();
+  unset($html_dom);
+  return $html;
+}
+
+/**
  * Intercepts all theme calls (including templates), adds to template log, and dispatches to original theme function.
  */
 function devel_themer_catch_function() {
@@ -220,18 +254,25 @@ function devel_themer_catch_function() {
       // markup added to the document HEAD.
       $exclude[] = 'html_tag';
 
+      // DATE MODULE: Inline labels for date select lists shouldn't be wrapped.
+      if (strpos($meta['hook'], 'date_part_label_') === 0 && $variables['element']['#type'] == 'date_select' && $variables['element']['#date_label_position'] == 'within') {
+        $exclude[] = $hook;
+      }
+
       if (!in_array($hook, $exclude)) {
-        $return = '<span thmr="' . $key . '">' . $return . '</span>';
+        $return = devel_themer_inject_markers($return, $key);
       }
     }
 
     if ($meta['type'] == 'func') {
       $name = $meta['hook'];
       $used = $meta['used'];
-      if (empty($meta['wildcards'])) {
-        $meta['wildcards'] = array($hook);
+      global $theme;
+      $candidates = array();
+      foreach (array_reverse($meta['suggestions']) as $suggestion) {
+        $candidates[] = "{$theme}_{$suggestion}";
       }
-      $candidates = $meta['wildcards'];
+      $candidates[] = "{$theme}_{$name}";
       if (empty($meta['variables'])) {
         $variables = array();
       }
@@ -284,10 +325,7 @@ function devel_themer_catch_function() {
       'type' => $meta['type'],
     );
   }
-  else {
-    $output = $return;
-  }
-  return isset($output) ? $output : $return;
+  return $return;
 }
 
 /**
@@ -483,6 +521,7 @@ function devel_themer_theme_twin($hook, $variables) {
       $output = $info['function']($variables);
       $meta['type'] = 'func';
       $meta['used'] = $info['function'];
+      $meta['suggestions'] = $suggestions;
     }
   }
   else {
@@ -552,11 +591,16 @@ function devel_themer_exit() {
     // We used to write this to DB but was getting 'Warning: Got a packet bigger than 'max_allowed_packet' bytes'
     // Writing to temp dir means we don't worry about folder existence/perms and cleanup is free.
     try {
-      file_save_data(serialize($GLOBALS['devel_themer_server']), "temporary://devel_themer_$request_id", FILE_EXISTS_REPLACE);
+      $file = file_save_data(serialize($GLOBALS['devel_themer_server']), "temporary://devel_themer_$request_id", FILE_EXISTS_REPLACE);
     }
     catch (Exception $e) {
-      file_save_data(serialize(array("unables to save variables, probably due to pdo")), "temporary://devel_themer_$request_id", FILE_EXISTS_REPLACE);
+      $file = file_save_data(serialize(array("unables to save variables, probably due to pdo")), "temporary://devel_themer_$request_id", FILE_EXISTS_REPLACE);
     }
+
+    // file_save_data() saves the file with permanent status. Change this to
+    // temporary so that system_cron() garbage collects them.
+    $file->status = 0;
+    file_save($file);
 
     $GLOBALS['devel_theme_calls']['request_id'] = $request_id;
     $GLOBALS['devel_theme_calls']['devel_themer_uri'] = url("devel_themer/variables/$request_id");
@@ -659,34 +703,4 @@ function devel_themer_popup() {
 EOT;
 
   drupal_add_js(array('thmr_popup' => $popup), 'setting');
-}
-
-/**
- * Clean up the files we dropped in the temp dir in devel_themer_exit().
- *
- * Limitation: one more devel_themer_exit() will run after this function is
- * called and drop one more file, since hook_exit() is called after the normal
- * page cycle.
- *
- * @return
- *   void.
- */
-function devel_themer_cleanup() {
-  $scan = file_scan_directory('temporary://', '/^devel_themer_/', array('recurse' => FALSE));
-  foreach (array_keys($scan) as $file) {
-    $fid = db_query('SELECT fid FROM {file_managed} WHERE uri = :uri', array(':uri' => "temporary://$file"))->fetchField();
-    if (!empty($fid)) {
-      file_delete($file);
-    }
-  }
-}
-
-/**
- * Implement hook_cron() for periodic cleanup.
- *
- * @return
- *   void.
- */
-function devel_themer_cron() {
-  devel_themer_cleanup();
 }
