@@ -57,7 +57,8 @@ dependencies[] = views_bulk_operations
 dependencies[] = wysiwyg
 dependencies[] = l10n_client
 dependencies[] = l10n_pconfig
-dependencies[] = l10n_update
+dependencies[] = uuid
+dependencies[] = link.n
 files[] = projektwaterkant.profile
 
 
