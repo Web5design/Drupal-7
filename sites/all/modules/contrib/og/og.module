@@ -6,7 +6,7 @@
  */
 
 // Add field widget related code.
-require drupal_get_path('module', 'og') . '/includes/og.field.inc';
+require DRUPAL_ROOT . '/' . drupal_get_path('module', 'og') . '/includes/og.field.inc';
 
 /**
  * Define active group content states.
@@ -1031,7 +1031,7 @@ function og_og_fields_info() {
   );
 
   $items[OG_AUDIENCE_FIELD] = array(
-    'no ui' => TRUE,
+    'multiple' => TRUE,
     'type' => array('group content'),
     'description' => t('Determine to which groups this group content is assigned to.'),
     'field' => array(
@@ -3051,7 +3051,11 @@ function og_fields_info($field_name = NULL) {
       if ($fields = module_invoke($module, 'og_fields_info')) {
         foreach ($fields as $key => $field) {
           // Add default values.
-          $field += array('entity type' => array());
+          $field += array(
+            'entity type' => array(),
+            'multiple' => FALSE,
+            'description' => '',
+          );
 
           // Add the module information.
           $return[$key] = array_merge($field, array('module' => $module));
@@ -3400,7 +3404,7 @@ function og_features_api() {
  * type that has them is selected.
  */
 function og_features_pipe_alter(&$pipe, $data, $export) {
-  if (variable_get('og_features_ignore_og_fields', FALSE) || empty($pipe['field'])) {
+  if (!variable_get('og_features_ignore_og_fields', FALSE) || empty($pipe['field'])) {
     return;
   }
   foreach ($pipe['field'] as $delta => $value) {
@@ -3421,6 +3425,14 @@ function og_migrate_api() {
     $migrations['OgMigrateAddFields'] = array('class_name' => 'OgMigrateAddFields');
     $migrations['OgMigrateContent'] = array('class_name' => 'OgMigrateContent');
     $migrations['OgMigrateUser'] = array('class_name' => 'OgMigrateUser');
+
+    foreach (node_type_get_names() as $bundle => $value) {
+      $machine_name = 'OgMigrateGroup' . ucfirst($bundle);
+      $migrations[$machine_name] = array(
+        'class_name' => 'OgMigrateGroup',
+        'bundle' => $bundle,
+      );
+    }
   }
   elseif (db_field_exists('og_membership', 'group_type') && db_table_exists('og') && !db_table_exists('d6_og')) {
     $migrations['OgMigrateMembership'] = array('class_name' => 'OgMigrateMembership');
@@ -3433,24 +3445,4 @@ function og_migrate_api() {
     'migrations' => $migrations,
   );
   return $api;
-}
-
-/**
- * Implements hook_modules_enabled().
- *
- * Register dynamic migrate plugins for upgrading from OG6.
- */
-function og_modules_enabled($modules) {
-  if (!db_table_exists('d6_og')) {
-    return;
-  }
-
-  if (!in_array('migrate', $modules) && !module_exists('migrate')) {
-    return;
-  }
-
-  foreach (node_type_get_names() as $bundle => $value) {
-    // Register a dynamic migration.
-    Migration::registerMigration('OgMigrateGroup', 'OgMigrateGroup' . ucfirst($bundle), array('bundle' => $bundle));
-  }
 }
