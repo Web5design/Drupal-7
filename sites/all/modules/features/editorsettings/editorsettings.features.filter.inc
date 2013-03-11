@@ -1,16 +1,16 @@
 <?php
 /**
  * @file
- * wisiwyg_profiles.features.filter.inc
+ * editorsettings.features.filter.inc
  */
 
 /**
  * Implements hook_filter_default_formats().
  */
-function wisiwyg_profiles_filter_default_formats() {
+function editorsettings_filter_default_formats() {
   $formats = array();
 
-  // Exported format: Filtered HTML
+  // Exported format: Filtered HTML.
   $formats['filtered_html'] = array(
     'format' => 'filtered_html',
     'name' => 'Filtered HTML',
@@ -22,7 +22,7 @@ function wisiwyg_profiles_filter_default_formats() {
         'weight' => '0',
         'status' => '1',
         'settings' => array(
-          'filter_url_length' => 72,
+          'filter_url_length' => '72',
         ),
       ),
       'filter_html' => array(
@@ -39,6 +39,11 @@ function wisiwyg_profiles_filter_default_formats() {
         'status' => '1',
         'settings' => array(),
       ),
+      'media_filter' => array(
+        'weight' => '2',
+        'status' => '1',
+        'settings' => array(),
+      ),
       'filter_htmlcorrector' => array(
         'weight' => '10',
         'status' => '1',
@@ -47,7 +52,7 @@ function wisiwyg_profiles_filter_default_formats() {
     ),
   );
 
-  // Exported format: Full HTML
+  // Exported format: Full HTML.
   $formats['full_html'] = array(
     'format' => 'full_html',
     'name' => 'Full HTML',
@@ -59,11 +64,16 @@ function wisiwyg_profiles_filter_default_formats() {
         'weight' => '0',
         'status' => '1',
         'settings' => array(
-          'filter_url_length' => 72,
+          'filter_url_length' => '72',
         ),
       ),
       'filter_autop' => array(
         'weight' => '1',
+        'status' => '1',
+        'settings' => array(),
+      ),
+      'media_filter' => array(
+        'weight' => '2',
         'status' => '1',
         'settings' => array(),
       ),
