@@ -565,7 +565,9 @@ function media_browser_plus_edit_cancel($form, &$form_state) {
     unset($_GET['destination']);
   }
   if (isset($destination['destination'])) {
-    $form_state['redirect'] = $destination['destination'];
+    $parsed_url = parse_url($destination['destination']);
+    parse_str($parsed_url['query'], $query);
+    $form_state['redirect'] = array($parsed_url['path'], array('query' => $query));
   }
 }
 
@@ -2000,7 +2002,7 @@ function _media_browser_plus_media_basket_select_button() {
 function media_browser_plus_construct_dir_path($term = NULL) {
   $path = variable_get('file_default_scheme', 'public') . '://';
   if ($root_folder = variable_get('media_root_folder')) {
-    $path = $root_folder . '/';
+    $path .= $root_folder . '/';
   }
   $root_folder_term = media_browser_plus_get_media_root_folder();
   if ($term) {
@@ -2096,12 +2098,14 @@ function media_browser_plus_taxonomy_term_presave($term) {
  * Implements hook_taxonomy_term_insert().
  */
 function media_browser_plus_taxonomy_term_insert($term) {
-  $dir = media_browser_plus_construct_dir_path($term);
-  if (file_prepare_directory($dir, FILE_CREATE_DIRECTORY)) {
-    drupal_set_message(t('Folder %term_name created successfully', array('%term_name' => $term->name)));
-  }
-  else {
-    drupal_set_message(t('Folder %term_name created successfully as term but failed to create as physical folder.Please do it manually', array('%term_name' => $term->name)), 'warning');
+  if ($term->vocabulary_machine_name == 'media_folders') {
+    $dir = media_browser_plus_construct_dir_path($term);
+    if (file_prepare_directory($dir, FILE_CREATE_DIRECTORY)) {
+      drupal_set_message(t('Folder %term_name created successfully', array('%term_name' => $term->name)));
+    }
+    else {
+      drupal_set_message(t('Folder %term_name created successfully as term but failed to create as physical folder.Please do it manually', array('%term_name' => $term->name)), 'warning');
+    }
   }
 }
 
@@ -2149,19 +2153,21 @@ function media_browser_plus_taxonomy_term_delete($term) {
         'paging' => FALSE,
         'conditions' => $conditions,
       );
-      $files = media_browser_plus_load_multiple($options);
-      $deleted_all_files = TRUE;
-      foreach ($files as $file) {
-        if (!file_delete($file)) {
-          $deleted_all_files = FALSE;
-        }
-      }
       $folder_path = media_browser_plus_construct_dir_path($folder);
-      if ($deleted_all_files) {
-        // This will fail if the folder isn't empty. This should be defensive
-        // enough.
-        if (!@drupal_rmdir($folder_path)) {
-          drupal_set_message(t('Unable to delete the folder (!path) on the disk', array('!path' => $folder_path)), 'error');
+      if ($files = media_browser_plus_load_multiple($options)) {
+        $all_files_deleted = TRUE;
+        if (!empty($files->results)) {
+          foreach ($files->results as $file) {
+            if (!file_delete($file)) {
+              $all_files_deleted = FALSE;
+            }
+          }
+        }
+        // Also delete the folder when it's empty.
+        if ($all_files_deleted) {
+          if (!@drupal_rmdir($folder_path)) {
+            drupal_set_message(t('Unable to delete the folder (!path) on the disk', array('!path' => $folder_path)), 'error');
+          }
         }
       }
     }
